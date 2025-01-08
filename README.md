@@ -1,7 +1,6 @@
 # mdopen-mode
 
 `mdopen-mode` is an Emacs minor mode that allows for an instant preview of Markdown files via `mdopen`. It is inspired by `grip-mode` but specifically aims to streamline the preview process while providing alternative approaches for handling temporary files.  
-
 ## Features
 
 - Instantly preview your Markdown files using `mdopen`.  
