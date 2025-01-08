@@ -39,61 +39,34 @@
   :type 'file
   :group 'mdopen)
 
-(defcustom mdopen-preview-use-temp t
-  "If non-nil, use a temporary `.tmp.md` file in `temporary-file-directory` for preview.
-Otherwise, preview the raw Markdown file directly."
-  :type 'boolean
-  :group 'mdopen)
-
 (defvar mdopen--process nil
-  "The mdopen process for previewing.")
-
-(defvar-local mdopen--temp-file-path nil
-  "Path to the temporary `.tmp.md` file.")
+  "The mdopen process for previewing the Markdown file.")
 
 (defun mdopen--kill-process ()
-  "Kill any running mdopen process and clean up temporary files."
+  "Kill any running mdopen process."
   (when mdopen--process
     (delete-process mdopen--process)
     (message "Process `%s' killed" mdopen--process)
-    (setq mdopen--process nil))
-  (when (and mdopen--temp-file-path
-             (file-exists-p mdopen--temp-file-path))
-    (delete-file mdopen--temp-file-path)
-    (setq mdopen--temp-file-path nil)))
-
-(defun mdopen--create-temp-file ()
-  "Create a temporary `.tmp.md` file based on the current buffer."
-  (let ((temp-file (concat (file-name-as-directory temporary-file-directory)
-                           (file-name-nondirectory buffer-file-name)
-                           ".tmp.md")))
-    (with-temp-file temp-file
-      (insert-buffer-substring-no-properties (current-buffer)))
-    temp-file))
+    (setq mdopen--process nil)))
 
 (defun mdopen--start-process ()
-  "Start the mdopen process to preview the Markdown."
+  "Start the mdopen process to preview the current Markdown file."
   (mdopen--kill-process)
-  (let ((preview-file
-         (if mdopen-preview-use-temp
-             (setq mdopen--temp-file-path (mdopen--create-temp-file))
-           buffer-file-name)))
-    (setq mdopen--process
-          (start-process "mdopen-process" "*mdopen-output*"
-                         mdopen-binary-path preview-file))
-    (message "Started mdopen process for file: %s" preview-file)))
+  (unless (buffer-file-name)
+    (user-error "Buffer is not visiting a file"))
+  (setq mdopen--process
+        (start-process "mdopen-process" "*mdopen-output*"
+                       mdopen-binary-path buffer-file-name))
+  (message "Started mdopen process to preview: %s" buffer-file-name))
 
 (defun mdopen-refresh ()
   "Refresh the preview by restarting the mdopen process."
-  (when (and mdopen--process (process-live-p mdopen--process))
-    (mdopen--kill-process))
+  (interactive)
   (mdopen--start-process))
 
 (defun mdopen-start-preview ()
   "Start previewing the current Markdown buffer using mdopen."
   (interactive)
-  (unless (buffer-file-name)
-    (user-error "Buffer is not visiting a file"))
   (add-hook 'after-save-hook #'mdopen-refresh nil t)
   (add-hook 'kill-buffer-hook #'mdopen--kill-process nil t)
   (mdopen--start-process))
@@ -102,12 +75,14 @@ Otherwise, preview the raw Markdown file directly."
   "Stop the mdopen preview and clean up."
   (interactive)
   (remove-hook 'after-save-hook #'mdopen-refresh t)
+  (remove-hook 'kill-buffer-hook #'mdopen--kill-process t)
   (mdopen--kill-process))
 
 ;;;###autoload
 (define-minor-mode mdopen-mode
-  "Minor mode for previewing Markdown files using mdopen."
+  "Minor mode for previewing Markdown files with mdopen."
   :lighter " mdopen"
+  :group 'mdopen
   (if mdopen-mode
       (mdopen-start-preview)
     (mdopen-stop-preview)))

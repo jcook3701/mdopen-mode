@@ -12,6 +12,9 @@
 - Graceful cleanup of preview processes and temporary files.  
 - Fully compatible with Emacs' `markdown-mode`.  
 
+## Prerequisite
+- [mdopen](https://github.com/immanelg/mdopen): `cargo install mdopen`
+
 ## Installation
 
 1. Clone the repository or download the `mdopen-mode.el` file.  
@@ -56,24 +59,12 @@ Make sure mdopen is installed on your system and accessible in your $PATH. If it
 (setq mdopen-binary-path "/custom/path/to/mdopen")
 ```
 
-2. Temporary File Behavior  
-
-By default, mdopen-mode uses temporary .tmp.md files for previews. This ensures your original Markdown files remain unaffected. To enable or disable this behavior:     
-
-``` elisp
-;; Use temporary `.tmp.md` files for previews (default)
-(setq mdopen-preview-use-temp t)
-
-;; Directly preview the original Markdown file
-(setq mdopen-preview-use-temp nil)
-```
-
-3. Automatic Refresh  
+2. Automatic Refresh  
 
 The preview updates automatically whenever you save the file, ensuring the displayed content is always current.  
 
 ``` elisp
-(add-hook 'after-save-hook #'mdopen-refresh)
+(add-hook 'after-save-hook #'mdopen-refresh nil t)
 ```
 
 ## Example Configuration
@@ -84,7 +75,6 @@ Here’s how you can configure mdopen-mode with your preferences:
 	:hook (markdown-mode . mdopen-mode)
 	:config
 	(setq mdopen-binary-path "/usr/local/bin/mdopen") ;; Replace with path to mdopen
-	(setq mdopen-preview-use-temp t) ;; Use temp files for previews
 	:bind 
 	(:map markdown-mode-command-map
 		("C-c C-m" . mdopen-mode))
