@@ -58,49 +58,42 @@
   :group 'mdopen)
 
 (defvar mdopen--process nil
-  "Handle to the mdopen process.")
-
-;;; Helper Functions
+  "Handle to the mdopen process for the current buffer.")
 
 (defun mdopen--kill-process ()
   "Kill the mdopen process linked to the current buffer."
   (when (and mdopen--process (process-live-p mdopen--process))
     (delete-process mdopen--process)
-    (message "Killed mdopen process for buffer: %s" (buffer-name))
-    (setq mdopen--process nil)))
+    (setq mdopen--process nil)
+    (message "Killed mdopen process for buffer: %s" (buffer-name))))
 
 (defun mdopen--start-process ()
-  "Start the mdopen process for the current buffer's file."
+  "Start the mdopen process for the current buffer's file.
+If a process is already running, reuse it."
   (unless (buffer-file-name)
     (user-error "Buffer is not visiting a file"))
-  (mdopen--kill-process) ;; Ensure no duplicate processes
-  (setq mdopen--process
-        (start-process "mdopen-process" "*mdopen-output*"
-                       mdopen-binary-path buffer-file-name))
-  (message "Started mdopen process for: %s" (buffer-file-name)))
-
-(defun mdopen-process-running-p ()
-  "Determine if the `mdopen` process is currently running."
-  (and mdopen--process (process-live-p mdopen--process)))
+  ;; Start a new process only if there isn't one already
+  (unless (and mdopen--process (process-live-p mdopen--process))
+    (setq mdopen--process
+          (start-process "mdopen-process" "*mdopen-output*"
+                         mdopen-binary-path buffer-file-name))
+    (message "Started mdopen process for: %s" buffer-file-name)))
 
 (defun mdopen-refresh ()
-  "Refresh the Markdown preview via mdopen without opening a new tab."
+  "Refresh the browser with the correct file path served by mdopen.
+Reuses the existing process if available."
   (interactive)
   (let* ((file-relative-path (file-relative-name buffer-file-name))
          (preview-url (format "%s/%s" mdopen-server-host file-relative-path)))
-    (if (mdopen-process-running-p)
+    ;; Ensure the mdopen process is running, and refresh the browser
+    (if (and mdopen--process (process-live-p mdopen--process))
         (progn
-          ;; Notify user and refresh (reuse the same tab in the browser)
-          (message "Refreshing existing mdopen preview for: %s" buffer-file-name)
-          ;; Use `browse-url` and rely on the browser's tab reuse feature
+          (message "Reusing existing mdopen process for: %s" buffer-file-name)
           (browse-url preview-url))
-      ;; If the process is not running, restart it
-      (message "mdopen process is not running; restarting...")
+      ;; If the process is not running, start it again
+      (message "mdopen process not running; restarting...")
       (mdopen--start-process)
-      (message "Opening preview in browser for: %s" preview-url)
       (browse-url preview-url))))
-
-;;; Interactive Functions
 
 (defun mdopen-start-preview ()
   "Start the Markdown preview process via mdopen."
@@ -108,7 +101,9 @@
   (when buffer-file-name
     (add-hook 'after-save-hook #'mdopen-refresh nil t)
     (add-hook 'kill-buffer-hook #'mdopen--kill-process nil t)
+    ;; Start or reuse the process
     (mdopen--start-process)
+    ;; Open the browser preview
     (let* ((file-relative-path (file-relative-name buffer-file-name))
            (preview-url (format "%s/%s" mdopen-server-host file-relative-path)))
       (message "Opening mdopen preview at: %s" preview-url)
@@ -119,12 +114,13 @@
   (interactive)
   (remove-hook 'after-save-hook #'mdopen-refresh t)
   (remove-hook 'kill-buffer-hook #'mdopen--kill-process t)
+  ;; Stop the process
   (mdopen--kill-process)
   (message "Stopped mdopen preview for buffer: %s" (buffer-name)))
 
 ;;;###autoload
 (define-minor-mode mdopen-mode
-  "Minor mode for previewing Markdown files via mdopen."
+  "Minor mode for live previewing Markdown files via mdopen."
   :lighter " mdopen"
   (if mdopen-mode
       (mdopen-start-preview)
