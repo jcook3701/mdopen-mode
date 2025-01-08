@@ -10,21 +10,34 @@
 
 ;;; Commentary:
 
-;; Instant Markdown preview using mdopen subprocess.
-;;
-;; Features:
-;; - Option to preview the raw markdown file directly using `mdopen`.
-;; - Or create temporary `.tmp.md` files in `temporary-file-directory` for preview.
-;;
+;; mdopen-mode is an Emacs minor mode that provides instant preview of Markdown
+;; files using the mdopen command-line tool.
+
 ;; Install:
-;; From melpa, `M-x package-install RET mdopen-mode RET`.
+;; From melpa: `M-x package-install RET mdopen-mode RET`.
 ;; Add the following to your `init.el`:
 ;; ```emacs-lisp
 ;; (use-package mdopen-mode
-;;   :ensure t
-;;   :bind (:map markdown-mode-command-map
-;;          ("m" . mdopen-mode)))
+;;   :hook ((markdown-mode . mdopen-mode)
+;; 	 (after-save-hook . mdopen-refresh))
+;;   :bind
+;;   (:map markdown-mode-command-map
+;; 	("C-c C-m" . mdopen-mode))
+;;   :ensure t)
 ;; ```
+;;
+;; Install:
+;; From: github:
+;; Add the following to your `init.el`:
+;; ```emacs-lisp
+;; (use-package mdopen-mode
+;;   :hook ((markdown-mode . mdopen-mode)
+;; 	 (after-save-hook . mdopen-refresh))
+;;   :bind
+;;   (:map markdown-mode-command-map
+;; 	("C-c C-m" . mdopen-mode))
+;;   :ensure (:fetcher github :repo "jcook3701/mdopen-mode"))
+;;
 ;; Run `M-x mdopen-mode` to preview a Markdown file with your defined preferences.
 
 ;;; Code:
@@ -62,14 +75,16 @@ If a process already exists, keep it running and reuse it."
     (message "Started mdopen process for file: %s" buffer-file-name)))
 
 (defun mdopen-refresh ()
-  "Signal the existing `mdopen` process to refresh or restart it if necessary."
+  "Signal the existing `mdopen` process to refresh or re-open the preview in the browser."
   (interactive)
   (if (and mdopen--process (process-live-p mdopen--process))
       (progn
-        ;; Reload the file in the existing mdopen process
-        (message "Signaling mdopen to refresh for file: %s" buffer-file-name))
-    ;; If the process died or doesn’t exist, start a fresh one
-    (message "mdopen process is not running; restarting...")
+        ;; Notify user that the preview is being refreshed
+        (message "Triggered mdopen to refresh for file: %s" buffer-file-name)
+        ;; Reuse the existing browser URL to reload
+        (browse-url (format "http://localhost:PORT"))) ;; Adjust the port number.
+    ;; If the process is not running, start it again
+    (message "mdopen process not running; restarting...")
     (mdopen--start-process)))
 
 (defun mdopen-start-preview ()
