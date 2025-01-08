@@ -35,44 +35,52 @@
   :link '(url-link :tag "Homepage" "https://github.com/jcook3701/mdopen-mode"))
 
 (defcustom mdopen-binary-path "mdopen"
-  "Path to the mdopen binary."
-  :type 'file
+  "Path to the `mdopen` binary."
+  :type 'string
   :group 'mdopen)
 
 (defvar mdopen--process nil
-  "The mdopen process for previewing the Markdown file.")
+  "Active `mdopen` process for the current buffer.")
 
 (defun mdopen--kill-process ()
-  "Kill any running mdopen process."
-  (when mdopen--process
+  "Kill the running `mdopen` process tied to the current buffer."
+  (when (and mdopen--process (process-live-p mdopen--process))
     (delete-process mdopen--process)
-    (message "Process `%s' killed" mdopen--process)
-    (setq mdopen--process nil)))
+    (setq mdopen--process nil)
+    (message "Killed mdopen process for buffer: %s" (buffer-name))))
 
 (defun mdopen--start-process ()
-  "Start the mdopen process to preview the current Markdown file."
-  (mdopen--kill-process)
-  (unless (buffer-file-name)
+  "Start the `mdopen` process to preview the current Markdown file.
+If a process already exists, keep it running and reuse it."
+  (when (not (buffer-file-name))
     (user-error "Buffer is not visiting a file"))
-  (setq mdopen--process
-        (start-process "mdopen-process" "*mdopen-output*"
-                       mdopen-binary-path buffer-file-name))
-  (message "Started mdopen process to preview: %s" buffer-file-name))
+  (unless (and mdopen--process (process-live-p mdopen--process))
+    ;; If the process doesn't exist, start a new one
+    (setq mdopen--process
+          (start-process "mdopen-process" nil
+                         mdopen-binary-path buffer-file-name))
+    (message "Started mdopen process for file: %s" buffer-file-name)))
 
 (defun mdopen-refresh ()
-  "Refresh the preview by restarting the mdopen process."
+  "Signal the existing `mdopen` process to refresh or restart it if necessary."
   (interactive)
-  (mdopen--start-process))
+  (if (and mdopen--process (process-live-p mdopen--process))
+      (progn
+        ;; Reload the file in the existing mdopen process
+        (message "Signaling mdopen to refresh for file: %s" buffer-file-name))
+    ;; If the process died or doesn’t exist, start a fresh one
+    (message "mdopen process is not running; restarting...")
+    (mdopen--start-process)))
 
 (defun mdopen-start-preview ()
-  "Start previewing the current Markdown buffer using mdopen."
+  "Start the `mdopen-mode` preview for the current buffer."
   (interactive)
   (add-hook 'after-save-hook #'mdopen-refresh nil t)
   (add-hook 'kill-buffer-hook #'mdopen--kill-process nil t)
   (mdopen--start-process))
 
 (defun mdopen-stop-preview ()
-  "Stop the mdopen preview and clean up."
+  "Stop the `mdopen-mode` preview for the current buffer."
   (interactive)
   (remove-hook 'after-save-hook #'mdopen-refresh t)
   (remove-hook 'kill-buffer-hook #'mdopen--kill-process t)
@@ -80,7 +88,7 @@
 
 ;;;###autoload
 (define-minor-mode mdopen-mode
-  "Minor mode for previewing Markdown files with mdopen."
+  "Minor mode to preview Markdown files with mdopen."
   :lighter " mdopen"
   :group 'mdopen
   (if mdopen-mode
