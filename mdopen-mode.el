@@ -60,63 +60,82 @@
 (defvar mdopen--process nil
   "Handle to the mdopen process for the current buffer.")
 
+(defvar mdopen--last-url nil
+  "Stores the URL of the current preview.")
+
+;;; Helper Functions
+
 (defun mdopen--kill-process ()
-  "Kill the mdopen process linked to the current buffer."
+  "Kill the mdopen process for the current buffer."
   (when (and mdopen--process (process-live-p mdopen--process))
     (delete-process mdopen--process)
     (setq mdopen--process nil)
-    (message "Killed mdopen process for buffer: %s" (buffer-name))))
+    (message "Killed the mdopen process for buffer: %s" (buffer-name))))
 
 (defun mdopen--start-process ()
-  "Start the mdopen process for the current buffer's file.
-If a process is already running, reuse it."
+  "Start or reuse the mdopen process for the current buffer."
   (unless (buffer-file-name)
     (user-error "Buffer is not visiting a file"))
-  ;; Start a new process only if there isn't one already
+  ;; Only start a new process if one isn't already running
   (unless (and mdopen--process (process-live-p mdopen--process))
     (setq mdopen--process
           (start-process "mdopen-process" "*mdopen-output*"
                          mdopen-binary-path buffer-file-name))
     (message "Started mdopen process for: %s" buffer-file-name)))
 
+(defun mdopen-refresh-browser ()
+  "Refresh the browser for the current preview URL."
+  (interactive)
+  (if mdopen--last-url
+      (progn
+        (message "Refreshing browser for URL: %s" mdopen--last-url)
+        ;; Reload manually in the browser if the URL is already open
+        (browse-url mdopen--last-url))
+    (message "No preview URL available to refresh.")))
+
 (defun mdopen-refresh ()
-  "Refresh the browser with the correct file path served by mdopen.
-Reuses the existing process if available."
+  "Refresh the Markdown preview after saving."
   (interactive)
   (let* ((file-relative-path (file-relative-name buffer-file-name))
          (preview-url (format "%s/%s" mdopen-server-host file-relative-path)))
-    ;; Ensure the mdopen process is running, and refresh the browser
+    ;; Ensure the mdopen process is running
     (if (and mdopen--process (process-live-p mdopen--process))
         (progn
-          (message "Reusing existing mdopen process for: %s" buffer-file-name)
-          (browse-url preview-url))
-      ;; If the process is not running, start it again
-      (message "mdopen process not running; restarting...")
+          (message "Reusing existing mdopen process for buffer: %s" (buffer-name))
+          ;; Refresh browser manually if needed
+          (setq mdopen--last-url preview-url))
+      ;; Restart the process if necessary
+      (message "mdopen process not found, restarting...")
       (mdopen--start-process)
-      (browse-url preview-url))))
+      (setq mdopen--last-url preview-url))
+    ;; The browser is refreshed manually, not automatically
+    (message "Markdown preview updated. Use M-x mdopen-refresh-browser to refresh the browser.")))
 
 (defun mdopen-start-preview ()
-  "Start the Markdown preview process via mdopen."
+  "Start the Markdown preview with mdopen."
   (interactive)
   (when buffer-file-name
     (add-hook 'after-save-hook #'mdopen-refresh nil t)
     (add-hook 'kill-buffer-hook #'mdopen--kill-process nil t)
-    ;; Start or reuse the process
+    ;; Start or reuse the existing mdopen process
     (mdopen--start-process)
-    ;; Open the browser preview
+    ;; Open the browser only once
     (let* ((file-relative-path (file-relative-name buffer-file-name))
            (preview-url (format "%s/%s" mdopen-server-host file-relative-path)))
-      (message "Opening mdopen preview at: %s" preview-url)
-      (browse-url preview-url))))
+      (setq mdopen--last-url preview-url)
+      (browse-url preview-url)
+      (message "Opened mdopen preview for: %s" preview-url))))
 
 (defun mdopen-stop-preview ()
-  "Stop the Markdown preview process and clear hooks."
+  "Stop the Markdown preview process and remove hooks."
   (interactive)
   (remove-hook 'after-save-hook #'mdopen-refresh t)
   (remove-hook 'kill-buffer-hook #'mdopen--kill-process t)
-  ;; Stop the process
+  ;; Stop the mdopen process
   (mdopen--kill-process)
-  (message "Stopped mdopen preview for buffer: %s" (buffer-name)))
+  ;; Clear the URL
+  (setq mdopen--last-url nil)
+  (message "Stopped mdopen preview for this buffer."))
 
 ;;;###autoload
 (define-minor-mode mdopen-mode
