@@ -1,0 +1,40 @@
+
+title: mdopen-mode
+description: mdopen-mode documentation
+remote_theme: pmarsceill/just-the-docs
+google_analytics: G-C7PWLWSHB9
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-github-metadata
+  - jekyll-include-cache
+  - jekyll-sitemap
+
+kramdown:
+  auto_ids: true
+
+logo: /assets/images/icon128.png
+repo_url: "https://github.com/jcook3701/mdopen-mode"
+repo_name: mdopen-mode
+nav_enabled: true
+search_enabled: true
+
+# Aux links for the upper right navigation
+aux_links:
+  "mdopen-mode on GitHub":
+    - "//github.com/jcook3701/mdopen-mode"
+
+# Makes Aux links open in a new tab. Default is false
+aux_links_new_tab: false
+
+# Exclude files/folders from Jekyll processing
+exclude:
+  - node_modules
+  - .DS_Store
+  - Gemfile
+  - Gemfile.lock
+
+# Optional SEO metadata
+seo:
+  title: mdopen-mode Documentation
+  description: Full code documentation for the mdopen-mode project
